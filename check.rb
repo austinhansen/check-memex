@@ -6,23 +6,50 @@ require 'capybara/poltergeist'
 
 class InventoryChecker
   include Capybara::DSL
+  Capybara.register_driver :poltergeist do |app|
+    options = { js_errors: false }
+    Capybara::Poltergeist::Driver.new(app, options)
+  end
   Capybara.default_driver = :poltergeist
 
   def check
-    page.driver.set_cookie('Inventory_Region', 'Edmonton', domain: 'www.memoryexpress.com')
-    visit "http://www.memoryexpress.com/Products/MX64875"
+    sagrada
+  end
 
-    inventory = all('.c-capr-inventory-store').map do |store|
-      name = store.find('[data-role="store"]').text
-      stock = store.find('.InventoryState_InStock').text
+  def sagrada
+    bliss_inventory = check_bliss "https://www.boardgamebliss.com/products/sagrada?variant=32022349517"
+    amazon_inventory = check_amazon "https://www.amazon.ca/Floodgate-Games-FFG-SA01-Sagrada-Board/dp/B01MTG2QY2"
 
-      { name: name, stock: stock }
+    combine_inventories([bliss_inventory, amazon_inventory])
+  end
+
+  private
+
+  def check_bliss(url)
+    visit url
+    stock = find(".selector-wrapper").text
+    price = format_price(find("#price-preview").text)
+    { Name: "Boardgame Bliss", Stock: stock, Price: price }
+  end
+
+  def check_amazon(url)
+    visit url
+    stock = find("#availability").text
+    price = format_price(find("#priceblock_ourprice").text)
+    { Name: "Amazon", Stock: stock, Price: price }
+  end
+
+  def combine_inventories(inventories_array)
+    inventories_array.reduce("") do |combined_output, inventory|
+      inventory.each do |key, value|
+        combined_output << "#{key}: #{value}\n"
+      end
+      combined_output
     end
+  end
 
-    inventory
-      .reject { |i| i[:name].downcase.include?('online') }
-      .map { |i| i[:stock].to_i }
-      .inject(:+)
+  def format_price(price)
+    price.delete("^0-9.").prepend("$")
   end
 end
 
