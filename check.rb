@@ -3,6 +3,7 @@
 require 'capybara'
 require 'capybara/dsl'
 require 'capybara/poltergeist'
+require 'whirly'
 
 class InventoryChecker
   include Capybara::DSL
@@ -17,9 +18,13 @@ class InventoryChecker
   end
 
   def sagrada
-    bliss_inventory = check_bliss "https://www.boardgamebliss.com/products/sagrada?variant=32022349517"
-    amazon_inventory = check_amazon "https://www.amazon.ca/Floodgate-Games-FFG-SA01-Sagrada-Board/dp/B01MTG2QY2"
-
+    bliss_inventory = spin("Querying Board Game Bliss") do
+      check_bliss "https://www.boardgamebliss.com/products/sagrada?variant=32022349517"
+    end
+    amazon_inventory = spin("Querying Amazon") do
+      check_amazon "https://www.amazon.ca/Floodgate-Games-FFG-SA01-Sagrada-Board/dp/B01MTG2QY2"
+    end
+    spin("Reticulating splines") { sleep(1) }
     combine_inventories([bliss_inventory, amazon_inventory])
   end
 
@@ -50,6 +55,12 @@ class InventoryChecker
 
   def format_price(price)
     price.delete("^0-9.").prepend("$")
+  end
+
+  def spin(status)
+    Whirly.start position: :below, spinner: "pong", status: status, stop: "Done!" do
+      return yield
+    end
   end
 end
 
